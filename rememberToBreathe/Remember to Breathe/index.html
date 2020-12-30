@@ -1,0 +1,1266 @@
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>
+            Remember to Breathe
+        </title>
+        <script src="//cdn.jsdelivr.net/npm/phaser@3.24.1/dist/phaser.js"></script>
+    </head>
+    <body>
+        <script>
+            function preloadTutorial(){
+                this.load.path='Assets/Sprites/';
+                this.load.image('tutorial','tutorial.png');
+            }
+            function createTutorial(){
+                objects={};
+                game=this;
+                objects.tutorial=this.add.sprite(width/2,height/2,'tutorial');
+                if(!keys.initialized){
+                    setupKeys();
+                }
+            }
+            function updateTutorial(){
+                if(keys.lungs.isDown){
+                    game.scene.start("walk");
+                }
+            }
+            function preloadMenu(){
+                this.load.path='Assets/Sprites/';
+                this.load.image('title','titlescreen.png');
+            }
+            function createMenu(){
+                objects={};
+                game=this;
+                objects.menu = this.add.sprite(width/2,height/2,'title');
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                objects.walkButton=button(640,height/2,90,40,"Start",function(pointer){
+                    globalData.nextScene="walk";
+                    onDayEnd();
+                    game.scene.start("tutorial");
+                });
+            }
+            function updateMenu(){
+                
+            }
+            function preloadEndscreen(){
+                this.load.path = 'Assets/Sprites/';
+                this.load.image('win','winscreen.png');
+                this.load.image('timefail','timefail.png');
+                this.load.image('heartfail','heartfail.png');
+                this.load.image('lungfail','lungfail.png');
+            }
+            function createEndscreen(){
+                objects={};
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                objects.background= this.add.sprite(width/2,height/2,transferData.image);
+                objects.winText = this.add.text(8,400,transferData.score,{fontSize:'36px',fill:'#fff'});
+                objects.playAgain=button(640,height/2,120,40,"Continue",function(pointer){
+                    game.scene.start(globalData.nextScene);
+                });
+                objects.toMenu = button(160,height/2,90,40,"Quit",function(pointer){
+                    game.scene.start("menu");
+                });
+            }
+            function updateEndscreen(){
+                
+            }
+            function preloadChoice(){
+                this.load.path='Assets/Sprites/';
+                this.load.image('title','titlescreen.png');
+            }
+            function createChoice(){
+                objects={};
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                objects.background = this.add.sprite(width/2,height/2,'title');
+                objects.text = this.add.text(300,70,"What Now?",{fontSize:'48px',fill:'#ffffff'});
+                objects.text.setOrigin(0.5,0);
+                globalData.nextScene="dayend";
+                objects.buttons=[];
+                objects.buttons.push(button(300,200,140,90,"Exercise",function(){
+                    globalData.exercising=true;
+                    game.scene.start("exercise");
+                }));
+                objects.buttons.push(button(500,200,140,90,"Talk",function(){
+                    globalData.talking=true;
+                    game.scene.start("talk");
+                }));
+                objects.buttons.push(button(300,400,140,90,"Shop",function(){
+                    game.scene.start("shop");
+                }));
+                objects.buttons.push(button(500,400,140,90,"Overtime",function(){
+                    game.scene.start("overtime");
+                }));
+                objects.moneyText = this.add.text(10,450,"Money: " + globalData.money,{fontSize:"24px",fill:"#ffffff"});
+                objects.foodText = this.add.text(10,500,"Food: " + globalData.food,{fontSize:"24px",fill:"#ffffff"});
+            }
+            function createDayEnd(){
+                objects={};
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                globalData.nextScene="walk";
+                if(globalData.food<=0){
+                    objects.text = this.add.text(width/2,0,"You Starved to Death",{fontSize:"48px",fill:"#ffffff"});
+                    objects.text.setOrigin(0.5,0);
+                    globalData.money=0;
+                    globalData.items=[];
+                    globalData.taskNegations=[];
+                    objects.button = button(width/2,450,140,90,"Quit",function(){game.scene.start("menu")});
+                }else{
+                    objects.text = this.add.text(width/2,0,"Day " + globalData.dayNumber + " Is Over.\nDay " + (globalData.dayNumber+1) + " Begins!",{fontSize:"48px",fill:"#ffffff"});
+                    onDayEnd();
+                    objects.text.setOrigin(0.5,0);
+                    objects.statText = this.add.text(0,450,"Money: " + globalData.money + "\nFood Left: " + globalData.food,{fontSize:"24px",fill:"#ffffff"});
+                    objects.button = button(width/2,450,140,90,"Sleep",function(){
+                        game.scene.start("walk");
+                    });
+                }
+            }
+            function updateChoice(){
+
+            }
+            function randint(low, high){
+                return Math.round(Math.random()*(high - low)) + low;
+            }
+            var width = 800;
+            var height=600;
+            var passingInfo = {};
+            var angles = [180,270,0,90];
+            var pointX = [width/2-35,width/2-10,width/2+15,width/2+40,width/2+65];
+            var dirNames = ["left","up","right","down"];
+            function arrowOnScreen(arrow){
+                return arrow.sprite.x > 200 && arrow.sprite.y>75 && arrow.sprite.x < 600 && arrow.sprite.y<525;
+            }
+            var arrowInPosition = [
+                function(arrow){
+                    return arrow.sprite.x < 200;
+                },
+                function(arrow){
+                    return arrow.sprite.y < 75;
+                },
+                function(arrow){
+                    return arrow.sprite.x > 600;
+                },
+                function(arrow){
+                    return arrow.sprite.y>525 && arrow.sprite.x>200 && arrow.sprite.x < 600;
+                }
+            ];
+            var config = {
+                type: Phaser.AUTO,
+                width: width,
+                height: height,
+                backgroundColor: 'rgba(80,80,128,1)',
+                scene: [
+                {
+                    key:'menu',
+                    preload:preloadMenu,
+                    create:createMenu,
+                    update:updateMenu
+                },
+                {
+                    key:'walk',
+                    preload: preload,
+                    create: createWalk,
+                    update: update
+                },
+                {
+                    key:'work',
+                    preload:preload,
+                    create:createWork,
+                    update:update
+                },
+                {
+                    key:'talk',
+                    preload:preload,
+                    create:createTalk,
+                    update:update
+                },
+                {
+                    key:'endscreen',
+                    preload:preloadEndscreen,
+                    create:createEndscreen,
+                    update:updateEndscreen
+                },
+                {
+                    key:'tutorial',
+                    preload:preloadTutorial,
+                    create:createTutorial,
+                    update:updateTutorial
+                },
+                {
+                    key:'shop',
+                    preload:preload,
+                    create:createShop,
+                    update:update
+                },
+                {
+                    key:'choice',
+                    preload:preloadChoice,
+                    create:createChoice,
+                    update:updateChoice
+                },
+                {
+                    key:'exercise',
+                    preload:preload,
+                    create:createExercise,
+                    update:update
+                },
+                {
+                    key:'overtime',
+                    preload:preload,
+                    create:createOvertime,
+                    update:update
+                },
+                {
+                    key:'dayend',
+                    preload:preloadChoice,
+                    create:createDayEnd,
+                    update:updateChoice
+                }
+                ]
+            };
+            var game = new Phaser.Game(config);
+            var gameState = "walking";
+            var objects = {};
+            var activeTasks = [];
+            var transferData = {};
+            var globalData = {money:0,items:[],taskNegations:["heart","eyes"],food:2,dayNumber:0,nextScene:"walk",exercising:false,talking:false};
+            //Scene progression: walk, work, choice(exercise (hard mode walk: faster breathing and heart), talk, overtime, shop), next day
+            var keys = {
+                heart: null,
+                lungs: null,
+                eyes: null,
+                leftLeg: null,
+                rightLeg: null,
+                initialized: false
+            };
+            function setupKeys(){
+                keys.heart = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+                keys.lungs = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+                keys.eyes = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+                keys.left = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
+                keys.up = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+                keys.right = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+                keys.down = game.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+                keys.wasDown = {heart:false,lungs:false,eyes:false,left:false,up:false,right:false,down:false};
+            }
+            var input;
+            var maxLungScale = 0.5;
+            var minLungScale = 0.4;
+            var maxHeartScale = 0.6;
+            var minHeartScale = 0.45;
+            var blinkTime = 0.15;
+
+            function preload ()
+            {
+                this.load.path = 'Assets/Sprites/';
+                this.load.image('manwalk0', 'man/manwalk/manwalk0.png');
+                this.load.image('manwalk1', 'man/manwalk/manwalk1.png');
+                this.load.image('manwalk2', 'man/manwalk/manwalk2.png');
+                this.load.image('manwalk3', 'man/manwalk/manwalk3.png');
+                this.load.image('heart','heart.png');
+                this.load.image('brokenHeart','hurt.png');
+                this.load.image('lungs','lungs.png');
+                this.load.image('eyes0','eyes/eyesopen.png');
+                this.load.image('eyes1','eyes/eyespartopen.png');
+                this.load.image('eyes2','eyes/eyesclosed.png');
+                this.load.image('leftLeg','leg.png');
+                this.load.image('rightLeg','otherleg.png');
+                this.load.image('manfall0','man/manfall/manfall0.png');
+                this.load.image('manfall1','man/manfall/manfall1.png');
+                this.load.image('manfall2','man/manfall/manfall2.png');
+                this.load.image('manfall3','man/manfall/manfall3.png');
+                this.load.image('table','table.png');
+                this.load.image('arrow','arrow.png');
+                this.load.image('happyhead','man/manhead/happyhead.png');
+                this.load.image('neutralhead','man/manhead/neutralhead.png');
+                this.load.image('sadhead','man/manhead/sadhead.png');
+                this.load.image('talkinghead','man/manhead/talkinghead.png');
+                this.load.image('talkarrow0','talkarrow1.png');
+                this.load.image('talkarrow1','talkarrow2.png');
+                this.load.image('talkarrow2','talkarrow3.png');
+                this.load.image('talkarrow3','talkarrow4.png');
+
+                this.load.path = 'Assets/Sounds/';
+                this.load.audio('heart','heart.wav');
+                this.load.audio('breathein','breathein.wav');
+                this.load.audio('breatheout','breatheout.wav');
+                this.load.audio('blink','blonk.wav');
+                this.load.audio('leftleg','leftleg.wav');
+                this.load.audio('rightleg','rightleg.wav');
+                this.load.audio('heartfail','heartfail.wav');
+                this.load.audio('breathefail','breathefail.wav');
+                this.load.audio('walkfail','fall.wav');
+                this.load.audio('paperpickup','paperpickup.wav');
+                this.load.audio('paperdispose','paperdispose.wav');
+                this.load.audio('voice0','left.wav');
+                this.load.audio('voice1','up.wav');
+                this.load.audio('voice2','right.wav');
+                this.load.audio('voice3','down.wav');
+            }
+            function topLeftRect(thing,x,y,w,h,c){
+                return thing.add.rectangle(x+w/2,y+h/2,w,h,c);
+            }
+            function createBodypartItems(heartHealth=4, heartTime=1, o2lvl=6, o2FailTime=2, blinkTime=10,countdownTime=3){
+                game.anims.create({
+                    key:'blink',
+                    frames:[
+                        {key:'eyes0'},
+                        {key:'eyes1'},
+                        {key:'eyes2'},
+                        {key:'eyes1'},
+                        {key:'eyes0'}
+                    ],
+                    frameRate: 8
+                });
+                game.anims.create({
+                    key:'closeEyes',
+                    frames:[
+                        {key:'eyes0'},
+                        {key:'eyes1'},
+                        {key:'eyes2'}
+                    ],
+                    frameRate:8
+                });
+                game.anims.create({
+                    key:'openEyes',
+                    frames:[
+                        {key:'eyes2'},
+                        {key:'eyes1'},
+                        {key:'eyes0'}
+                    ],
+                    frameRate:8
+                });
+                objects.background = {};
+                objects.background.bg0 = topLeftRect(game,0,0,200,height,0xdbbd63);
+                objects.background.bg1 = topLeftRect(game,width-200,0,200,height,0xdbbd63);
+                objects.background.bg2 = topLeftRect(game,0,height-75,width,75,0xdbbd63);
+                objects.bodyparts = {};
+                objects.bars = {};
+                if(!globalData.taskNegations.includes("heart")){
+                    objects.bodyparts.heart = game.add.sprite(75,95,'heart');
+                    objects.bodyparts.heart.setScale(0.5);
+                    objects.bodyparts.heart.pieces = [];
+                    objects.bodyparts.heart.health=heartHealth;
+                    objects.bodyparts.heart.maxHealth=heartHealth;
+                    for(var i = 0; i < objects.bodyparts.heart.health; i++){
+                        var nextHeart = game.add.sprite(objects.bodyparts.heart.x-(objects.bodyparts.heart.health/2)*20+i*30,objects.bodyparts.heart.y-60,"heart");
+                        objects.bodyparts.heart.pieces.push(nextHeart);
+                        nextHeart.setScale(0.2);
+                    }
+                    objects.bars.heart={};
+                    objects.bars.heart.ctrlText = game.add.text(0,objects.bodyparts.heart.y,"a",{fontSize:'24px',fill:"#ffffff"});
+                    objects.bars.heart.ctrlText.setOrigin(0,0.5);
+                    objects.bars.heart.bar = game.add.rectangle(167,objects.bodyparts.heart.y,35,70);
+                    objects.bars.heart.bar.setStrokeStyle(2,0x0);
+                    objects.bars.heart.fill = {};
+                    objects.bars.heart.fill.blue = game.add.rectangle(167,objects.bodyparts.heart.y+33.5,31,67,0x3dccd1);
+                    objects.bars.heart.fill.red = game.add.rectangle(167,objects.bodyparts.heart.y,31,67,0xff6600);
+                    objects.bars.heart.fill.blue.setOrigin(0.5,1);
+                    objects.bars.heart.fill.red.setOrigin(0.5,1);
+                    var hardMode = globalData.items.includes("hardModePills");
+                    objects.bars.heart.timeLeft = hardMode?heartTime/2:heartTime;
+                    objects.bars.heart.totalTime= hardMode?heartTime/2:heartTime;
+                }
+                if(!globalData.taskNegations.includes("lungs")){
+                    objects.bodyparts.lungs = game.add.sprite(75,220,'lungs');
+                    objects.bodyparts.lungs.setScale(0.4);
+                    objects.bars.lungs={};
+                    objects.bars.lungs.ctrlText = game.add.text(0,objects.bodyparts.lungs.y,"⎵",{fontSize:'24px',fill:"#ffffff"});
+                    objects.bars.lungs.ctrlText.setOrigin(0,0.5);
+                    objects.bars.lungs.shaking = false;
+                    objects.bars.lungs.bar = game.add.rectangle(167,objects.bodyparts.lungs.y,35,70);
+                    objects.bars.lungs.bar.setStrokeStyle(2,0x0);
+                    objects.bars.lungs.fill = {};
+                    objects.bars.lungs.fill.blue = game.add.rectangle(167,objects.bodyparts.lungs.y+33.5,31,67,0x3dccd1);
+                    objects.bars.lungs.fill.red = game.add.rectangle(167,objects.bodyparts.lungs.y,31,67,0xff6600);
+                    objects.bars.lungs.fill.blue.setOrigin(0.5,1);
+                    objects.bars.lungs.fill.red.setOrigin(0.5,1);
+                    objects.bars.lungs.oxygenLevel = o2lvl;
+                    objects.bars.lungs.totalOxygenLevel=o2lvl;
+                    objects.bars.lungs.breatheDir=-1;
+                    objects.bars.lungs.canBreatheIn=false;
+                    objects.bars.lungs.timeFull = 0;
+                    objects.bars.lungs.maxTimeFull = o2FailTime;
+                }
+                if(!globalData.taskNegations.includes("eyes")){
+                    objects.bodyparts.eyes = game.add.sprite(75, 360, 'eyes0');
+                    objects.bodyparts.eyes.setScale(0.5);
+                    objects.bars.eyes={};
+                    objects.bars.eyes.ctrlText = game.add.text(0,objects.bodyparts.eyes.y,"s",{fontSize:'24px',fill:"#ffffff"});
+                    objects.bars.eyes.ctrlText.setOrigin(0,0.5);
+                    objects.bars.eyes.bar = game.add.rectangle(167,objects.bodyparts.eyes.y,35,70);
+                    objects.bars.eyes.bar.setStrokeStyle(2,0x0);
+                    objects.bars.eyes.fill = game.add.rectangle(167,objects.bodyparts.eyes.y+33.5,31,67,0x3dccd1);
+                    objects.bars.eyes.fill.setOrigin(0.5,1);
+                    objects.bars.eyes.timeLeft=blinkTime;
+                    objects.bars.eyes.totalTime=blinkTime;
+                    objects.closedEyes={};
+                    objects.closedEyes.top = game.add.rectangle(200,0,400,525/2,0x0);
+                    objects.closedEyes.top.setOrigin(0,0);
+                    objects.closedEyes.top.setDepth(12);
+                    objects.closedEyes.bottom = game.add.rectangle(200,525,400,525/2,0x0);
+                    objects.closedEyes.bottom.setOrigin(0,1);
+                    objects.closedEyes.bottom.setDepth(12);
+                    objects.closedEyes.blindTime = 5;
+                    objects.closedEyes.blind = false;
+                    displayBlink();
+                }
+                objects.countdownText = game.add.text(width/2,height/2,"3",{fontSize:'48px',fill:'#ffffff'});
+                objects.countdownText.setDepth(13);
+                objects.countdownText.setOrigin(0.5,0.5);
+                objects.timeUntilStart=countdownTime;
+            }
+            function setActiveTasks(tasks){
+                activeTasks = [];
+                for(var i = 0; i < tasks.length; i++){
+                    if(!globalData.taskNegations.includes(tasks[i])){
+                        activeTasks.push(tasks[i]);
+                    }else{
+                        console.log(tasks[i]);
+                    }
+                }
+                return activeTasks;
+            }
+            function createExercise(){
+                objects={};
+                gameState = "countdownwalking";
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                this.cameras.main.setBackgroundColor('rgba(80,80,128,1)');
+                this.anims.create({
+                    key: 'leftLeg',
+                    frames: [
+                        { key: 'manwalk3' },
+                        { key: 'manwalk0' }
+                    ],
+                    frameRate: 6
+                });
+                this.anims.create({
+                    key:'rightLeg',
+                    frames:[
+                        { key: 'manwalk1' },
+                        { key: 'manwalk2' }
+                    ],
+                    frameRate:6
+                });
+                this.anims.create({
+                    key:'fall',
+                    frames:[
+                        {key:'manfall0'},
+                        {key:'manfall1'},
+                        {key:'manfall2'},
+                        {key:'manfall3',duration:1000},
+                        {key:'manfall2'},
+                        {key:'manfall1'},
+                        {key:'manfall0'}
+                    ],
+                    frameRate:6
+                });
+                objects.manSprite = this.add.sprite(width/2,height/2, 'manwalk0');
+                objects.manSprite.setScale(0.40);
+                createBodypartItems(4,0.5,3);
+                // objects.posText = this.add.text(600,500,'0,0',{fontSize:'24px',fill:'#000'});
+                objects.timeLeftText = this.add.text(200,height-75,"Time: 90.00",{fontSize:'24px',fill:'#000'});
+                objects.stepsLeftText =this.add.text(width-200,height-75,"Steps: 100",{fontSize:'24px',fill:'#000'});
+                objects.stepsLeftText.setOrigin(1,0);
+                //Walking-based objects
+                objects.walk={};
+                objects.walk.timeLeft = 90;
+                objects.walk.stepsLeft = 100;
+                objects.walk.lastLeg="none";
+                objects.walk.walkFailed=false;
+                objects.walk.leftLeg = this.add.sprite(680,85,"leftLeg");
+                objects.walk.leftLegText = this.add.text(width-180,objects.walk.leftLeg.y,"←",{fontSize:'24px',fill:'#ffffff'});
+                objects.walk.leftLegText.setOrigin(0,0.5);
+                objects.walk.leftLeg.setScale(0.4);
+                objects.walk.rightLeg = this.add.sprite(700,215,"rightLeg");
+                objects.walk.rightLegText = this.add.text(width-180,objects.walk.rightLeg.y,"→",{fontSize:'24px',fill:'#ffffff'});
+                objects.walk.rightLegText.setOrigin(0,0.5);
+                objects.walk.rightLeg.setScale(0.4);
+                objects.walk.cooldown=0;
+                objects.walk.maxCooldown=0.1;
+                objects.walk.leftLegData={};
+                objects.walk.rightLegData={};
+                objects.walk.leftLegData.bar = this.add.rectangle(767,objects.walk.leftLeg.y,35,70);
+                objects.walk.rightLegData.bar = this.add.rectangle(767,objects.walk.rightLeg.y,35,70);
+                objects.walk.leftLegData.bar.setStrokeStyle(2,0x0);
+                objects.walk.rightLegData.bar.setStrokeStyle(2,0x0);
+                objects.walk.leftLegData.fill = this.add.rectangle(767,objects.walk.leftLeg.y+33.5,31,67,0x3dccd1);
+                objects.walk.rightLegData.fill = this.add.rectangle(767,objects.walk.rightLeg.y+33.5,31,67,0x3dccd1);
+                objects.walk.leftLegData.fill.setOrigin(0.5,1);
+                objects.walk.rightLegData.fill.setOrigin(0.5,1);
+                setActiveTasks(["heart","lungs","eyes","walk"]);
+                globalData.nextScene="dayend";
+            }
+            function createWalk ()
+            {
+                objects={};
+                gameState = "countdownwalking";
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                this.cameras.main.setBackgroundColor('rgba(80,80,128,1)');
+                this.anims.create({
+                    key: 'leftLeg',
+                    frames: [
+                        { key: 'manwalk3' },
+                        { key: 'manwalk0' }
+                    ],
+                    frameRate: 6
+                });
+                this.anims.create({
+                    key:'rightLeg',
+                    frames:[
+                        { key: 'manwalk1' },
+                        { key: 'manwalk2' }
+                    ],
+                    frameRate:6
+                });
+                this.anims.create({
+                    key:'fall',
+                    frames:[
+                        {key:'manfall0'},
+                        {key:'manfall1'},
+                        {key:'manfall2'},
+                        {key:'manfall3',duration:1000},
+                        {key:'manfall2'},
+                        {key:'manfall1'},
+                        {key:'manfall0'}
+                    ],
+                    frameRate:6
+                });
+                objects.manSprite = this.add.sprite(width/2,height/2, 'manwalk0');
+                objects.manSprite.setScale(0.40);
+                createBodypartItems();
+                // objects.posText = this.add.text(600,500,'0,0',{fontSize:'24px',fill:'#000'});
+                objects.timeLeftText = this.add.text(200,height-75,"Time: 90.00",{fontSize:'24px',fill:'#000'});
+                objects.stepsLeftText =this.add.text(width-200,height-75,"Steps: 100",{fontSize:'24px',fill:'#000'});
+                objects.stepsLeftText.setOrigin(1,0);
+                //Walking-based objects
+                objects.walk={};
+                objects.walk.timeLeft = 90;
+                objects.walk.stepsLeft = 100;
+                objects.walk.lastLeg="none";
+                objects.walk.walkFailed=false;
+                objects.walk.leftLeg = this.add.sprite(680,85,"leftLeg");
+                objects.walk.leftLegText = this.add.text(width-180,objects.walk.leftLeg.y,"←",{fontSize:'24px',fill:'#ffffff'});
+                objects.walk.leftLegText.setOrigin(0,0.5);
+                objects.walk.leftLeg.setScale(0.4);
+                objects.walk.rightLeg = this.add.sprite(700,215,"rightLeg");
+                objects.walk.rightLegText = this.add.text(width-180,objects.walk.rightLeg.y,"→",{fontSize:'24px',fill:'#ffffff'});
+                objects.walk.rightLegText.setOrigin(0,0.5);
+                objects.walk.rightLeg.setScale(0.4);
+                objects.walk.cooldown=0;
+                objects.walk.maxCooldown=0.3;
+                objects.walk.leftLegData={};
+                objects.walk.rightLegData={};
+                objects.walk.leftLegData.bar = this.add.rectangle(767,objects.walk.leftLeg.y,35,70);
+                objects.walk.rightLegData.bar = this.add.rectangle(767,objects.walk.rightLeg.y,35,70);
+                objects.walk.leftLegData.bar.setStrokeStyle(2,0x0);
+                objects.walk.rightLegData.bar.setStrokeStyle(2,0x0);
+                objects.walk.leftLegData.fill = this.add.rectangle(767,objects.walk.leftLeg.y+33.5,31,67,0x3dccd1);
+                objects.walk.rightLegData.fill = this.add.rectangle(767,objects.walk.rightLeg.y+33.5,31,67,0x3dccd1);
+                objects.walk.leftLegData.fill.setOrigin(0.5,1);
+                objects.walk.rightLegData.fill.setOrigin(0.5,1);
+                setActiveTasks(["heart","lungs","eyes","walk"]);
+                globalData.nextScene="work";
+            }
+            function createOvertime(){
+                objects={};
+                gameState = "countdownworking";
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                this.cameras.main.setBackgroundColor('rgba(80,80,128,1)');
+                objects.work={};
+                objects.work.table = this.add.sprite(200,0,'table');
+                objects.work.table.setDepth(-2);
+                objects.work.table.setOrigin(0,0);
+                objects.work.timeLeft = 45;
+                objects.work.arrows = [];
+                objects.work.heldArrow=null;
+                createBodypartItems(4,2);
+                objects.background.bg3 = topLeftRect(this,200,0,400,75,0xdbbd63);
+                objects.work.sortText = this.add.text(width-200,90,"0 Sorted",{fontSize:'24px',fill:'#000000'});
+                objects.work.wrongText = this.add.text(width-200,120,"0 Mistakes",{fontSize:'24px',fill:'#000000'});
+                objects.work.timeLeftText = this.add.text(width-200,150,"45 Time Left",{fontSize:'24px',fill:"#000000"});
+                setActiveTasks(["heart","lungs","eyes","work"]);
+                objects.work.arrowCount = 10;
+                generateArrows(objects.work.arrowCount);
+                this.input.on('pointerdown',mouseDown);
+                objects.work.sorted = 0;
+                objects.work.mistakes = 0;
+                globalData.nextScene="dayend";
+            }
+            function createWork(){
+                objects={};
+                gameState = "countdownworking";
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                this.cameras.main.setBackgroundColor('rgba(80,80,128,1)');
+                objects.work={};
+                objects.work.table = this.add.sprite(200,0,'table');
+                objects.work.table.setDepth(-2);
+                objects.work.table.setOrigin(0,0);
+                objects.work.timeLeft = 120;
+                objects.work.arrows = [];
+                objects.work.heldArrow=null;
+                createBodypartItems(4,2);
+                objects.background.bg3 = topLeftRect(this,200,0,400,75,0xdbbd63);
+                objects.work.sortText = this.add.text(width-200,90,"0 Sorted",{fontSize:'24px',fill:'#000000'});
+                objects.work.wrongText = this.add.text(width-200,120,"0 Mistakes",{fontSize:'24px',fill:'#000000'});
+                objects.work.timeLeftText = this.add.text(width-200,150,"120 Time Left",{fontSize:'24px',fill:"#000000"});
+                setActiveTasks(["heart","lungs","eyes","work"]);
+                objects.work.arrowCount = 10;
+                generateArrows(objects.work.arrowCount);
+                this.input.on('pointerdown',mouseDown);
+                objects.work.sorted = 0;
+                objects.work.mistakes = 0;
+                objects.work.timeLeft = 120;
+                globalData.nextScene="choice";
+            }
+            function createTalk(){
+                objects={};
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                gameState = "countdowntalking";
+                this.cameras.main.setBackgroundColor('rgba(80,80,128,1)');
+                createBodypartItems(4,2);
+                this.anims.create({
+                    key:'headTalk',
+                    frames:[
+                        {key:'talkinghead',duration:200},
+                        {key:'neutralhead'}
+                    ]
+                });
+                this.anims.create({
+                    key:'headSad',
+                    frames:[
+                        {key:'sadhead',duration:1000},
+                        {key:'neutralhead'}
+                    ]
+                });
+                this.anims.create({
+                    key:'headHappy',
+                    frames:[
+                        {key:'happyhead',duration:1000},
+                        {key:'neutralhead'}
+                    ]
+                });
+                objects.talk={};
+                objects.talk.playerFace = this.add.sprite(200,525,'neutralhead');
+                objects.talk.playerFace.setOrigin(0,1);
+                objects.talk.playerFace.setScale(0.4);
+                objects.talk.enemyFace = this.add.sprite(600,0,'neutralhead');
+                objects.talk.enemyFace.setOrigin(1,0);
+                objects.talk.enemyFace.setScale(0.4);
+                objects.talk.enemyFace.flipX=true;
+                objects.talk.lines = [];
+                objects.talk.lines.push(topLeftRect(this,width/2-50,0,5,525,0x0));
+                objects.talk.lines.push(topLeftRect(this,width/2-25,0,5,525,0x0));
+                objects.talk.lines.push(topLeftRect(this,width/2,0,5,525,0x0));
+                objects.talk.lines.push(topLeftRect(this,width/2+25,0,5,525,0x0));
+                objects.talk.lines.push(topLeftRect(this,width/2+50,0,5,525,0x0));
+                objects.talk.lines.push(this.add.rectangle(width/2,450,100,5,0x0));
+                objects.talk.lines.push(this.add.rectangle(width/2,500,100,5,0x0));
+                objects.talk.points = [];
+                setActiveTasks(["heart","lungs","eyes","talk"]);
+                objects.talk.currentPhrase = null;
+                objects.talk.failedPhrase=false;
+                objects.talk.faceBar = {};
+                objects.talk.faceBar.bar = game.add.rectangle(750,95,35,70);
+                objects.talk.faceBar.bar.setStrokeStyle(2,0x0);
+                objects.talk.faceBar.fill = game.add.rectangle(750,95+33.5,31,67,0x3dccd1);
+                objects.talk.faceBar.fill.setOrigin(0.5,1);
+                objects.talk.faceBar.face = game.add.sprite(700,95,'happyhead');
+                objects.talk.faceBar.face.flipX=true;
+                objects.talk.faceBar.face.setScale(0.1);
+                objects.talk.faceBar.face.setOrigin(0.5,0);
+                objects.talk.consecutiveSuccesses=0;
+                objects.talk.neededSuccesses=3;
+                drawBarLevel(objects.talk.faceBar.fill,0);
+                globalData.nextScene="dayend";
+            }
+            function createShop(){
+                objects={};
+                game=this;
+                if(!keys.initialized){
+                    setupKeys();
+                }
+                input = this.input;
+                gameState = "countdownshopping";
+                objects.shop = {};
+                createBodypartItems(4,2);
+                objects.shop.items = [{
+                    name:"Food",
+                    cost:40,
+                    stock:-1,
+                    button:button(300,50,120,50,"Food",()=>buyItem("Food"),12),
+                    item:"food"
+                },{
+                    name:"Cardio Pills",
+                    cost:10,
+                    stock:3,
+                    button:button(480,50,120,50,"Cardio Pills",()=>buyItem("Cardio Pills"),12),
+                    item:"heartFailsafe"
+                },{
+                    name:"Cool Shades",
+                    cost:20,
+                    stock:1,
+                    button:button(300,150,120,50,"Cool Shades",()=>buyItem("Cool Shades"),12),
+                    item:"negationeyes"
+                },{
+                    name:"Hard Mode Pills",
+                    cost:5,
+                    stock:1,
+                    button:button(480,150,120,50,"Hard Mode Pills",()=>buyItem("Hard Mode Pills"),12),
+                    item:"hardModePills"
+                },{
+                    name:"Inhaler",
+                    cost:10,
+                    stock:3,
+                    button:button(300,250,120,50,"Inhaler",()=>buyItem("Inhaler"),12),
+                    item:"lungFailsafe"
+                }];
+                objects.shop.leaveButton = button(480,250,120,50,"Leave",function(){
+                    endGame("win","You bought some stuff!");
+                },12);
+                objects.shop.moneyText = this.add.text(620,40,"Money: "+globalData.money+"\nFood: "+globalData.food, {fontSize:"24px",fill:"#ffffff"});
+                setActiveTasks(["heart","lungs","eyes"]);
+                globalData.nextScene="dayend"
+            }
+            function itemByName(name){
+                for(var i in objects.shop.items){
+                    if(objects.shop.items[i].name==name){
+                        return objects.shop.items[i];
+                    }
+                }
+                return null;
+            }
+            function buyItem(item){
+                item = itemByName(item);
+                if(item.cost>globalData.money){
+                    item.button.text.setText("Too Expensive");
+                    setTimeout(()=>item.button.text.setText(item.name),1000);
+                    return false;
+                }
+                if(item.stock==0){
+                    return false;
+                }
+                if(item.item=="food"){
+                    globalData.food++;
+                }else{
+                    globalData.items.push(item.item);
+                }
+                item.stock--;
+                item.button.text.setText("Purchased");
+                setTimeout(()=>item.button.text.setText(item.stock==0?"Out of Stock":item.name),1000);
+                globalData.money-=item.cost;
+                console.log(globalData.items);
+                objects.shop.moneyText.setText("Money: " + globalData.money+"\nFood: " +globalData.food);
+                return true;
+            }
+            function onDayEnd(){
+                globalData.taskNegations=[];
+                globalData.dayNumber++;
+                globalData.exercising=false;
+                globalData.talking=false;
+                if(globalData.dayNumber<3){
+                    globalData.taskNegations.push("heart");
+                    if(globalData.dayNumber<2){
+                        globalData.taskNegations.push("eyes");
+                    }
+                }
+                var singleDayItems = ["negationlungs","negationeyes","negationheart","hardModePills"]
+                for(var i = globalData.items.length-1; i>=0; i--){
+                    if(singleDayItems.includes(globalData.items[i])){
+                        if(globalData.items[i].indexOf("negation")==0){
+                            globalData.taskNegations.push(globalData.items[i].substring(8));
+                        }
+                        globalData.items.splice(i,1);
+                    }
+                }
+                globalData.food--;
+            }
+            function talkPoint(dir,isLast=false,spd=2000){
+                var point = game.add.sprite(pointX[dir],0,"talkarrow"+dir);
+                objects.talk.enemyFace.play('headTalk');
+                game.sound.play("voice"+dir);
+                objects.talk.points.push(point);
+                if(isLast){
+                    point.on('destroy',function(pt){
+                        if(objects.talk.failedPhrase){
+                            objects.talk.enemyFace.play("headSad");
+                            objects.talk.consecutiveSuccesses=0;
+                        }else{
+                            objects.talk.enemyFace.play("headHappy");
+                            objects.talk.consecutiveSuccesses++;
+                            if(objects.talk.consecutiveSuccesses>=objects.talk.neededSuccesses){
+                                globalData.items.push("negationheart");
+                                endGame("win","Relationship\nMaintained!");
+                            }
+                        }
+                        objects.talk.failedPhrase=false;
+                    });
+                }
+                game.tweens.add({
+                    targets:point,
+                    y:{
+                        from:0,
+                        to:550
+                    },
+                    duration:spd
+                });
+                return point;
+            }
+            var delayTypes = [0.25,0.5,1];
+            function generatePhrase(len,timeToStart=0){
+                var phrase = [];
+                var totalTime = timeToStart;
+                for(var i = 0; i < len; i++){
+                    var delay = delayTypes[randint(0,delayTypes.length-1)];
+                    totalTime+=delay;
+                    phrase.push({dir:randint(0,3),timeUntil:totalTime,last:i==len-1});
+                }
+                return phrase;
+            }
+            function onPressArrow(dir){
+                if(gameState=="talking"){
+                    if(!activeTasks.includes("lungs") || objects.bars.lungs.breatheDir<=0){
+                        objects.talk.playerFace.play("headTalk");
+                        game.sound.play("voice"+dir,{rate:1.25});
+                        var validPoint = false;
+                        for(var i = objects.talk.points.length-1; i >= 0; i--){
+                            var point = objects.talk.points[i];
+                            if(pointX[dir] == point.x && point.y + point.height/2 > 450 && point.y - point.height/2 < 500){
+                                point.destroy();
+                                objects.talk.points.splice(i,1);
+                                validPoint=true;
+                            }
+                        }
+                        if(!validPoint){
+                            objects.talk.failedPhrase=true;
+                        }
+                    }else{
+                        shakeLungs();
+                    }
+                }
+            }
+            function generateArrows(count){
+                for(var i = 0; i < objects.work.arrows.length; i++){
+                    objects.work.arrows[i].sprite.destroy();
+                }
+                objects.work.arrows=[];
+                for(var i = 0; i < count; i++){
+                    var arrow = {startX:randint(220,580),startY:randint(90,505),dir:randint(0,3)};
+                    arrow.sprite = game.add.sprite(arrow.startX,arrow.startY,'arrow');
+                    arrow.sprite.angle = angles[arrow.dir];
+                    arrow.sprite.setScale(2,2);
+                    arrow.sprite.setDepth(-1);
+                    objects.work.arrows.push(arrow);
+                }
+            }
+            function getArrowIn(x,y){
+                for(var i = 0; i < objects.work.arrows.length; i++){
+                    var arrow = objects.work.arrows[i];
+                    var isFlipped = (arrow.angle/90)%2==0;
+                    var width = isFlipped?arrow.sprite.width:arrow.sprite.height;
+                    var height = isFlipped?arrow.sprite.height:arrow.sprite.width;
+                    if(x>=arrow.sprite.x-width/1.5 && y >= arrow.sprite.y-height/1.5 && x<=arrow.sprite.x+width/1.5 && y<=arrow.sprite.y+height/1.5){
+                        return arrow;
+                    }
+                }
+                return null;
+            }
+            function mouseDown(){
+                if(gameState=="working"){
+                    var arrow = getArrowIn(input.x,input.y);
+                    if(objects.work.heldArrow==null){
+                        if(arrow!=null){
+                            game.sound.play('paperpickup');
+                            objects.work.heldArrow=arrow;
+                        }
+                    }else{
+                        game.sound.play('paperpickup');
+                        objects.work.heldArrow=null;
+                    }
+                }
+            }
+            function displayBlink(){
+                if(!objects.closedEyes.blind){
+                    game.sound.play('blink');
+                    return game.tweens.add({
+                        targets:[objects.closedEyes.top,objects.closedEyes.bottom],
+                        scaleY:{
+                            from:0,
+                            to:1
+                        },
+                        duration:blinkTime*1500,
+                        yoyo:true
+                    });
+                }
+            }
+            function eyeFailure(){
+                objects.bodyparts.eyes.play("closeEyes");
+                game.tweens.add({
+                    targets:[objects.closedEyes.top,objects.closedEyes.bottom],
+                    scaleY:{
+                        from:0,
+                        to:1
+                    },
+                    duration:blinkTime*1500,
+                });
+                objects.closedEyes.blind=true;
+                setTimeout(function(){
+                    game.tweens.add({
+                    targets:[objects.closedEyes.top,objects.closedEyes.bottom],
+                    scaleY:{
+                        from:1,
+                        to:0
+                    },
+                    duration:blinkTime*1500,
+                });
+                objects.closedEyes.blind=false;
+                objects.bodyparts.eyes.play("openEyes");
+                },blinkTime*1500+objects.closedEyes.blindTime*1000);
+            }
+            function drawBarLevel(bar, level, hasRed = false, redStart = 0.5){
+                level = Math.max(Math.min(level,1),0);
+                if(hasRed){
+                    bar.blue.setScale(1,Math.min(level,redStart));
+                    bar.red.setScale(1,Math.max(0,level-redStart));
+                }else{
+                    bar.setScale(1,level);
+                }
+                //Level = number 0-1 that represents percentage full.
+                //Make color/flash if it's low
+            }
+            var lastTime = 0;
+            function onPressHeart(){
+                if(objects.bars.heart.timeLeft>objects.bars.heart.totalTime/2){
+                    //Fail state
+                    heartFail();
+                }else{
+                    game.sound.play("heart");
+                    objects.bars.heart.timeLeft = objects.bars.heart.totalTime;
+                    game.tweens.add({
+                        targets:objects.bodyparts.heart,
+                        scaleX:{
+                            from:maxHeartScale,
+                            to:minHeartScale
+                        },
+                        scaleY:{
+                            from:maxHeartScale,
+                            to:minHeartScale
+                        },
+                        duration:objects.bars.heart.timeLeft*1000
+                    });
+                }
+            }
+            function onPressLungs(){
+                console.log("Lungs pressed");
+                objects.bars.lungs.canBreatheIn=objects.bars.lungs.oxygenLevel<objects.bars.lungs.totalOxygenLevel/2;
+            }
+            function shakeLungs(){
+                if(!objects.bars.lungs.shaking){
+                    objects.bars.lungs.shaking=true;
+                    game.sound.play("breathefail");
+                    game.tweens.add({
+                        targets:objects.bodyparts.lungs,
+                        x:objects.bodyparts.lungs.x+randint(-20,20),
+                        y:objects.bodyparts.lungs.y+randint(-20,20),
+                        yoyo:true,
+                        duration:50,
+                        onComplete:function(){objects.bars.lungs.shaking=false}
+                    });
+                }
+            }
+            function onPressEyes(){
+                if(!objects.closedEyes.blind){
+                    console.log("Eyes Pressed");
+                    objects.bars.eyes.timeLeft = objects.bars.eyes.totalTime;
+                    objects.bodyparts.eyes.play("blink");
+                    displayBlink();
+                }
+            }
+            function heartFail(){
+                objects.bodyparts.heart.health--;
+                game.sound.play('heartfail');
+                for(var i = 0; i < objects.bodyparts.heart.pieces.length; i++){
+                    objects.bodyparts.heart.pieces[i].setTexture((i<objects.bodyparts.heart.health)?"heart":"brokenHeart");
+                }
+                if(objects.bodyparts.heart.health<=0){
+                    var failsafe = globalData.items.indexOf("heartFailsafe");
+                    if(failsafe>-1){
+                        objects.bodyparts.heart.health=4;
+                        objects.bars.heart.timeLeft=objects.bars.heart.totalTime;
+                        globalData.items.splice(failsafe,1);
+                    }else{
+                        globalData.money-=80;
+                        endGame("heartfail","You lost $80\nat the Hospital.");
+                    }
+                }
+            }
+            function walkFail(){
+                console.log("Walking failure");
+                game.sound.play('walkfail');
+                objects.walk.walkFailed=true;
+                objects.walk.cooldown=objects.walk.maxCooldown;
+                objects.manSprite.play("fall");
+                objects.manSprite.setOrigin(0.25,0.5);
+                setTimeout(function(){
+                    objects.walk.walkFailed=false;
+                    objects.manSprite.setOrigin(0.5,0.5);
+                    objects.manSprite.setTexture(objects.walk.lastLeg=="left"?'manwalk0':'manwalk2');
+                },2300);
+            }
+            function button(x,y,w=90,h=60,text="",onclick=null,fontSize='24px'){
+                var butt = game.add.rectangle(x,y,w,h,0x505080);
+                butt.setStrokeStyle(2,0xffffff);
+                var txt = game.add.text(x,y,text,{fontSize:fontSize,fill:'#ffffff'});
+                txt.setOrigin(0.5,0.5);
+                butt.setInteractive();
+                txt.setInteractive();
+                txt.on('pointerover',function(pointer){
+                    txt.setColor('#f5da64');
+                });
+                txt.on('pointerout',function(pointer){
+                    txt.setColor('rgba(255,255,255,1)');
+                });
+                txt.on('pointerdown',onclick);
+                butt.on('pointerdown',onclick);
+                return {button:butt,text:txt};
+            }
+            function endGame(endscreenType,text=""){
+                transferData={image:endscreenType,score:text};
+                game.scene.start("endscreen");
+            }
+            function update(time, delta){
+                var dt = delta/1000;
+                if(gameState.indexOf("countdown")==0){
+                    if(activeTasks.includes("heart")){
+                        drawBarLevel(objects.bars.heart.fill,1,true);
+                    }
+                    if(activeTasks.includes("eyes")){
+                        drawBarLevel(objects.bars.eyes.fill,1);
+                    }
+                    if(activeTasks.includes("lungs")){
+                        drawBarLevel(objects.bars.lungs.fill,1,true);
+                    }
+                    objects.countdownText.setText((""+(objects.timeUntilStart+1)).substring(0,1));
+                    objects.timeUntilStart-=dt;
+                    if(objects.timeUntilStart<=0){
+                        gameState=gameState.substring(9);
+                        objects.countdownText.setText("");
+                    }
+                }else{
+                    // objects.posText.setText(input.x+", " + input.y);
+                    //Heart
+                    if(activeTasks.includes("heart")){
+                        drawBarLevel(objects.bars.heart.fill,objects.bars.heart.timeLeft/objects.bars.heart.totalTime,true);
+                        objects.bars.heart.timeLeft-=dt;
+                        if(objects.bars.heart.timeLeft<=0){
+                            objects.bars.heart.timeLeft = objects.bars.heart.totalTime;
+                            heartFail();
+                            //Fail state
+                        }
+                        if(keys.heart.isDown && !keys.wasDown.heart){
+                            onPressHeart();
+                        }
+                    }
+                    //Eyes
+                    if(activeTasks.includes("eyes")){
+                        drawBarLevel(objects.bars.eyes.fill,objects.bars.eyes.timeLeft/objects.bars.eyes.totalTime);
+                        if(!objects.closedEyes.blind){
+                            objects.bars.eyes.timeLeft-=dt;
+                        }
+                        if(objects.bars.eyes.timeLeft<=0){
+                            //Blind Effect
+                            console.log("Blinking Failure");
+                            eyeFailure();
+                            objects.bars.eyes.timeLeft = objects.bars.eyes.totalTime;
+                        }
+                        if(keys.eyes.isDown && !keys.wasDown.eyes){
+                            onPressEyes();
+                        }
+                    }
+                    //Lungs
+                    if(activeTasks.includes("lungs")){
+                        drawBarLevel(objects.bars.lungs.fill,objects.bars.lungs.oxygenLevel/objects.bars.lungs.totalOxygenLevel,true);
+                        objects.bars.lungs.oxygenLevel+=objects.bars.lungs.breatheDir*dt;
+                        objects.bars.lungs.oxygenLevel = Math.min(objects.bars.lungs.totalOxygenLevel,objects.bars.lungs.oxygenLevel);
+                        objects.bodyparts.lungs.setScale((objects.bars.lungs.oxygenLevel/objects.bars.lungs.totalOxygenLevel)*(maxLungScale-minLungScale)+minLungScale);
+                        if(objects.bars.lungs.oxygenLevel>=objects.bars.lungs.totalOxygenLevel || objects.bars.lungs.oxygenLevel<=0){
+                            objects.bars.lungs.timeFull += dt;
+                            shakeLungs();
+                            if(objects.bars.lungs.timeFull>=objects.bars.lungs.maxTimeFull){
+                                //Fail state
+                                console.log("Breathing Failure");
+                                var failsafe = globalData.items.indexOf("lungFailsafe");
+                                if(failsafe>-1){
+                                    objects.bars.lungs.timeFull=0;
+                                    objects.bars.lungs.oxygenLevel=objects.bars.lungs.totalOxygenLevel;
+                                    objects.bars.lungs.breatheDir=-1;
+                                    globalData.items.splice(failsafe,1);
+                                }else{
+                                    globalData.money-=80;
+                                    endGame("lungfail","You Lost $80 at the Hospital.");
+                                }
+                            }
+                            objects.bars.lungs.oxygenLevel=Math.max(0,Math.min(objects.bars.lungs.oxygenLevel,objects.bars.lungs.totalOxygenLevel));
+                        }else{
+                            objects.bars.lungs.timeFull = 0;
+                        }
+                        var lastBreatheDir = objects.bars.lungs.breatheDir;
+                        objects.bars.lungs.breatheDir = (keys.lungs.isDown && objects.bars.lungs.canBreatheIn)?1.5:-1;
+                        if(lastBreatheDir>0 && objects.bars.lungs.breatheDir<0){
+                            this.sound.play("breatheout");
+                        }else if(lastBreatheDir<0 && objects.bars.lungs.breatheDir>0){
+                            this.sound.play("breathein");
+                        }
+                        if(keys.lungs.isDown && !keys.wasDown.lungs){
+                            onPressLungs();
+                        }
+                    }
+                    if(activeTasks.includes("walk")){
+                        drawBarLevel(objects.walk.leftLegData.fill,objects.walk.lastLeg=="right"?(1-(objects.walk.cooldown/objects.walk.maxCooldown)):0);
+                        //Right leg
+                        if(!objects.walk.walkFailed){
+                            if(keys.left.isDown && !keys.wasDown.left){
+                                if(objects.walk.lastLeg == "left" || objects.walk.cooldown>0){
+                                    //Failure state
+                                    walkFail();
+                                }else{
+                                    this.sound.play('leftleg');
+                                    objects.manSprite.play("leftLeg");
+                                    objects.walk.lastLeg = "left";
+                                    objects.walk.cooldown=objects.walk.maxCooldown;
+                                    objects.walk.stepsLeft--;
+                                }
+                            }
+                            if(keys.right.isDown && !keys.wasDown.right){
+                                if(objects.walk.lastLeg == "right" || objects.walk.cooldown>0){
+                                    walkFail();
+                                }else{
+                                    this.sound.play('rightleg');
+                                    objects.manSprite.play("rightLeg");
+                                    objects.walk.lastLeg = "right";
+                                    objects.walk.cooldown=objects.walk.maxCooldown;
+                                    objects.walk.stepsLeft--;
+                                }
+                            }
+                        }
+                        drawBarLevel(objects.walk.rightLegData.fill,objects.walk.lastLeg=="left"?(1-(objects.walk.cooldown/objects.walk.maxCooldown)):0);
+                        if(objects.walk.cooldown>=0){
+                            objects.walk.cooldown-=dt;
+                        }
+                    }
+                    if(activeTasks.includes("work")){
+                        if(objects.work.heldArrow!=null){
+                            var arrow = objects.work.heldArrow.sprite;
+                            arrow.x=input.x;
+                            arrow.y=input.y;
+                            var heldArrow = objects.work.heldArrow
+                            if(!arrowOnScreen(heldArrow)){
+                                if(arrowInPosition[heldArrow.dir](heldArrow)){
+                                    objects.work.sorted++;
+                                }else{
+                                    objects.work.mistakes++;
+                                }
+                                game.sound.play('paperdispose');
+                                heldArrow.sprite.destroy();
+                                objects.work.heldArrow=null;
+                                objects.work.arrowCount--;
+                                if(objects.work.arrowCount<=0){
+                                    objects.work.arrowCount=10;
+                                    generateArrows(objects.work.arrowCount);
+                                }
+                            }
+                        }
+                    }
+                    if(activeTasks.includes("talk")){
+                        for(var i = 0; i < dirNames.length; i++){
+                            if(keys[dirNames[i]].isDown && !keys.wasDown[dirNames[i]]){
+                                onPressArrow(i);
+                            }
+                        }
+                        for(var i = objects.talk.points.length-1; i >= 0; i--){
+                            var point = objects.talk.points[i];
+                            if(point.y>525){
+                                objects.talk.points.splice(point,1);
+                                objects.talk.failedPhrase=true;
+                                point.destroy();
+                            }
+                        }
+                        if(objects.talk.currentPhrase==null || objects.talk.currentPhrase.length==0){
+                            objects.talk.currentPhrase=generatePhrase(randint(3,6),randint(200,500)/100);
+                        }else{
+                            for(var i = objects.talk.currentPhrase.length-1; i >= 0; i--){
+                                var point = objects.talk.currentPhrase[i];
+                                point.timeUntil-=dt;
+                                if(point.timeUntil<=0){
+                                    talkPoint(point.dir,objects.talk.currentPhrase.length==1);
+                                    objects.talk.currentPhrase.splice(i,1);
+                                }
+                            }
+                        }
+                    }
+                    if(gameState=="walking"){
+                        objects.stepsLeftText.setText("Distance: " + objects.walk.stepsLeft);
+                        if(objects.walk.stepsLeft<=0){
+                            if(globalData.exercising){
+                                globalData.items.push("negationlungs");
+                            }
+                            endGame("win",("Time Left:\n"+objects.walk.timeLeft).substring(0,16));
+                        }
+                        objects.walk.timeLeft-=dt;
+                        objects.timeLeftText.setText("Time: "+(""+objects.walk.timeLeft).substring(0,5));
+                        if(objects.walk.timeLeft<=0){
+                            globalData.money-=40;
+                            endGame("timefail","You lost $40\nfor being late.");
+                        }
+                    }else if(gameState=="working"){
+                        objects.work.sortText.setText(objects.work.sorted + " Sorted");
+                        objects.work.wrongText.setText(objects.work.mistakes + " Mistakes");
+                        objects.work.timeLeft-=dt;
+                        objects.work.timeLeftText.setText((""+objects.work.timeLeft).substring(0,5) + " Time Left");
+                        if(objects.work.timeLeft<=0){
+                            var newMoney = (objects.work.sorted-objects.work.mistakes*3);
+                            globalData.money+=newMoney;
+                            endGame("win","Work's Over!\n Sorted:      $"+objects.work.sorted + "\n"+objects.work.mistakes+" x Mistakes: $"+(objects.work.mistakes*3)+"\n______________\nEarned:   $"+newMoney);
+                        }
+                    }else if(gameState=="talking"){
+                        drawBarLevel(objects.talk.faceBar.fill,objects.talk.consecutiveSuccesses/objects.talk.neededSuccesses);
+                    }
+                    for(var i in keys.wasDown){
+                        keys.wasDown[i] = keys[i].isDown;
+                    }
+                }
+            }
+        </script>
+    </body>
+</html>
