@@ -87,11 +87,12 @@ scene.update = function() {
 			this.goal = this.num;
 			for(i=0;i<k;i++){
 				rand= Math.round(Math.random());
-				if(rand=1){
+				console.log(rand);
+				if(rand==1){
 					this.goal+=this.plus;
 				}
 				else{
-					this.goal*=this.multiply
+					this.goal*=this.multiply;
 				}
 			}
 		}
