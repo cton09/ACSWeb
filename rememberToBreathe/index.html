@@ -4,7 +4,7 @@
         <title>
             Remember to Breathe
         </title>
-        <script src="//cdn.jsdelivr.net/npm/phaser@3.24.1/dist/phaser.js"></script>
+        <script src="phaser.js"></script>
     </head>
     <body>
         <script>
@@ -260,7 +260,11 @@
             var maxHeartScale = 0.6;
             var minHeartScale = 0.45;
             var blinkTime = 0.15;
-
+            var start = Date.now();
+            var timeText
+            var week = [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
+            var tick = 0
+            var day = 0
             function preload ()
             {
                 this.load.path = 'Assets/Sprites/';
@@ -805,6 +809,8 @@
                     }
                 }
                 globalData.food--;
+                tick=7200;
+                day+=1;
             }
             function talkPoint(dir,isLast=false,spd=2000){
                 var point = game.add.sprite(pointX[dir],0,"talkarrow"+dir);
@@ -1059,7 +1065,33 @@
                 transferData={image:endscreenType,score:text};
                 game.scene.start("endscreen");
             }
+            function isOpen(loc, tick){
+                if (loc=='office'&&7860<=tick<=19200&&day!='Sun')
+                    return true
+                if (loc=='park')
+                    return true
+                if (loc=='home')
+                    return true
+                if (loc=='cafe'&&tick>=15360)
+                    return true
+                if (loc=='grocery'&&tick<16320&&day!='Sat')
+                    return true
+                return false
+            }
+            function checkForPassout(loc, tick){
+                if (loc=='home'&&tick==960)
+                    return true
+                return false
+            }
             function update(time, delta){
+                tick+=1
+                if (tick>=23040){
+                    tick-=23040
+                    day+=1
+                }
+                hour = tick/960
+                minute = (tick%960)/16
+                this.timeText = this.add.text(300, 550, day+'\n'+hour+':'+minute, { fontSize: '16px', fill: '#000' });
                 var dt = delta/1000;
                 if(gameState.indexOf("countdown")==0){
                     if(activeTasks.includes("heart")){
