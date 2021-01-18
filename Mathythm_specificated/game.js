@@ -32,12 +32,12 @@ scene.create = function() {
 	t2 = this.add.rectangle(160, 100, 60, 50, 0xFF0000);
 	t1.setInteractive();
 	t2.setInteractive();
-	this.add.text(90, 100, '+'+this.plus, { fontSize: '16px', fill: '#000' });
-	this.add.text(150, 100, 'x'+this.multiply, { fontSize: '16px', fill: '#000' });
+	this.plusText = this.add.text(90, 100, '+'+this.plus, { fontSize: '16px', fill: '#000' });
+	this.multiText = this.add.text(150, 100, 'x'+this.multiply, { fontSize: '16px', fill: '#000' });
 	r1 = this.add.rectangle(200, 200, 200, 100, 0xFFFFFF)
 	r2 = this.add.rectangle(600, 200, 200, 100, 0xFFFFFF)
 	this.numText = this.add.text(150, 200, 'Current: '+this.num, { fontSize: '16px', fill: '#000' });
-	this.add.text(550, 200, 'Goal: '+this.goal, { fontSize: '16px', fill: '#000' });
+	this.goalText = this.add.text(550, 200, 'Goal: '+this.goal, { fontSize: '16px', fill: '#000' });
 	t1.on('pointerdown', function(){
 		scene.num+=scene.plus
 		scene.numText.setText("Current: " + scene.num);
@@ -53,22 +53,57 @@ scene.create = function() {
 
 scene.update = function() {
 	if(this.num==this.goal) {
-		if (this.level==10){
-			scene.end()
+		this.level+=1
+		if (this.level>10){
+			//endless mode starts
+			L  = this.level+1;
+			k = Math.floor(Math.sqrt(this.level));
+			this.plus = Math.floor(Math.random()*L);
+			this.multiply = Math.floor(Math.random()*11);
+			startNum  = Math.floor(Math.random()*L);
+			this.num = startNum;
+			this.goal = this.num;
+			for(i=0;i<k;i++){
+				rand= Math.round(Math.random());
+				if(rand=1){
+					this.goal+=this.plus;
+				}
+				else{
+					this.goal*=this.multiply
+				}
+			}
+			scene.plusText.setText('+'+this.plus);
+			scene.multiText.setText('x'+this.multiply);
+			scene.goalText.setText('Goal: '+this.goal);
+			scene.numText.setText('Current: '+this.num);
+			scene.levelText.setText('- Level '+this.level+' -');
 		}
-		else {this.level+=1
+		else {
 		this.num = num_array[this.level-1]
 		this.goal = goal_array[this.level-1]
 		this.plus = plus_array[this.level-1]
 		this.multiply = multiply_array[this.level-1]
-		this.create();
+		scene.plusText.setText('+'+this.plus);
+		scene.multiText.setText('x'+this.multiply);
+		scene.goalText.setText('Goal: '+this.goal);
+		scene.numText.setText('Current: '+this.num);
+		scene.levelText.setText('- Level '+this.level+' -');
 		}
 	}
 	else if (this.num>this.goal){
-		this.num = num_array[this.level-1]
+		if(this.level<=10){
+			this.num = num_array[this.level-1]
+		}
+		else{
+			this.num = startNum;
+		}
+		
 	} 
 	else {
-		this.create();
+		scene.plusText.setText('+'+this.plus);
+		scene.multiText.setText('x'+this.multiply);
+		scene.goalText.setText('Goal: '+this.goal);
+		scene.numText.setText('Current: '+this.num);
 	}
 };
 
