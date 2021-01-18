@@ -30,6 +30,8 @@ var cursors;
 var groundLayer, hazardLayer;
 var text;
 var enemyGroup;
+var chameleon;
+var timeStill=0;
  
 gameScene.preload = function() {
     this.load.tilemapTiledJSON('map', 'Assets/Tilemap/lv1.json');
@@ -41,7 +43,9 @@ gameScene.preload = function() {
     this.load.image('player','Assets/player.png');
     this.load.image('spider','Assets/spider.png');
     this.load.image('null','Assets/null.png')
-    this.load.image('guard','Assets/guard.png')
+    this.load.image('guard','Assets/guard.png');
+    this.load.image('chameleon',"Assets/chameleon.png");
+    this.load.image('chameleon_dead',"Assets/chameleon_dead.png");
 }
  
 gameScene.create = function()  {
@@ -64,7 +68,9 @@ gameScene.create = function()  {
     enemyGroup = this.add.group();
     spider = new Spider(this,800,800,'spider',0,true,200,300);
     enemyGroup.add(spider);
-    guard = new Guard(this,1800,800,'guard',20,true,300,400);
+    guard = new Guard(this,2000,800,'guard',20,true,200,400);
+    chameleon = new Chameleon(this,1800,800,'chameleon',10,true,400,250);
+    enemyGroup.add(chameleon);
     enemyGroup.add(guard);
 
 
@@ -99,7 +105,8 @@ gameScene.create = function()  {
     });
 }
  
-gameScene.update = function() {
+gameScene.update = function(time, delta) {
+    var dt = delta/1000;
     if (cursors.left.isDown) // if the left arrow key is down
     {
         player.body.setVelocityX(-player.speed); // move left
@@ -139,21 +146,31 @@ gameScene.update = function() {
     }
     
     enemyGroup.children.each(function(enemy) {
-        if(enemy.type=='guard'&&enemy.dead ==false){   
-            var bruh = enemy.ogx - player.x; 
-            if(bruh>-300&&bruh<300&&player.form=='player'){
+        if(enemy.type=='guard'&& !enemy.dead){   
+            var bruh = enemy.x - player.x; 
+            if(((enemy.flipX && bruh > 0 && bruh < 400) || (!enemy.flipX && bruh < 0 && bruh > -400) || (Math.abs(bruh)<80)) && player.isVisible){
                 enemy.move(player);
             }
             else{
                 enemy.body.setVelocityX(0);
             }
             
+        }else if(enemy.type=='chameleon' && !enemy.dead){
+            enemy.movePassive();
         }
         if(enemy.hp<=0&&enemy.dead==false){
             enemy.die();
         }
       }, this);
-
+      if(player.form=='chameleon'){
+          timeStill=(player.body.velocity.x==0 && player.body.velocity.y==0)?timeStill+dt:0;
+          if(timeStill>=1 && player.isVisible){
+            fadeOutPlayer(this);
+          }
+          if(timeStill==0 && !player.isVisible){
+              fadeInPlayer(this);
+          }
+      }
 }
 
 titleScene.preload = function() {
@@ -184,7 +201,7 @@ class Unit extends Phaser.Physics.Arcade.Sprite {
         this.maxHp = this.hp = hp;
         this.organic = organic;
         this.scene = scene;
-        if(organic==true){
+        if(organic){
             this.dead = false;
         }
         else{
@@ -217,6 +234,7 @@ class Player extends Unit{
         this.lastEaten = null;
         this.enemyGroup = enemyGroup
         this.attacking = false;
+        this.isVisible=true;
         this.setOrigin(0.5, 1);
         this.size = (64,64);
         
@@ -237,8 +255,13 @@ class Player extends Unit{
     transform(){
         if(this.lastEaten!= null){
             if(this.form=='player'){
-                this.form = 'notplayer'
-                this.setTexture(this.lastEaten.texture);
+                this.form = this.lastEaten.type;
+                var isDeadTexture = this.lastEaten.texture.key.indexOf("_dead");
+                if(isDeadTexture>-1){
+                    this.setTexture(this.lastEaten.texture.key.substring(0,isDeadTexture));
+                }else{
+                    this.setTexture(this.lastEaten.texture);
+                }
                 this.setTintFill(0x6bff33);
                 this.scene.time.addEvent({
                 delay: 500,
@@ -246,7 +269,7 @@ class Player extends Unit{
                     this.clearTint();    
                     },
                 loop: false
-                })
+                });
                 this.speed = this.lastEaten.speed;
                 this.jump = this.lastEaten.jump;
                 this.body.setSize(this.lastEaten.size);
@@ -326,7 +349,7 @@ class Spider extends Unit{
         this.dead = true;
     }
     attack(target){
-        if(target.texture = 'guard'){
+        if(target.texture == 'guard'){
             target.die();
         }
         else{
@@ -370,7 +393,96 @@ class Guard extends Unit{
             this.body.setVelocityX(this.speed);
             this.flipX = false;
         }
-        
          
     }
+}
+
+class Chameleon extends Unit{
+    constructor(scene,x,y,texture,hp,organic,speed,jump){
+        super(scene,x,y,texture,hp,organic,speed,jump);
+        this.size=(64,48);
+        this.type='chameleon';
+        this.ogx=x;
+        this.roamRange = 400;
+        this.destX = this.ogx+this.roamRange;
+        this.moving=true;
+        this.isVisible=true;
+    }
+    die(){
+        this.setTexture('chameleon_dead');
+        this.dead=true;
+    }
+    attack(target){
+        //Do nothing
+    }
+    movePassive(){
+        //Use flipX as a proxy for current direction, true = left, false = right
+        if(this.moving){
+            if(this.x<this.destX){
+                if(this.flipX){
+                    //set new destX, go from moving left to moving right
+                    this.destX = this.ogx+this.roamRange;
+                    this.moving=false;
+                    this.setInvisible();
+                    this.flipX=false;
+                }else{
+                    this.body.setVelocityX(this.speed);
+                }
+            }else{
+                if(!this.flipX){
+                    //if destination is to the left and moving right
+                    this.destX = this.ogx-this.roamRange;
+                    this.moving=false;
+                    this.setInvisible();
+                    this.flipX=true;
+                }else{
+                    this.body.setVelocityX(-this.speed);
+                }
+            }
+        }else{
+            this.body.setVelocityX(0);
+        }
+    }
+    setInvisible(){
+        this.scene.tweens.add({
+            delay:2000,
+            targets:this,
+            alpha:{from:1,to:0},
+            ease:'Power2',
+            duration:800,
+            onComplete:()=>this.isVisible=false
+        });
+        setTimeout(()=>{
+            this.moving=true;
+            this.destX = this.flipX?this.x-this.roamRange:this.x+this.roamRange
+            this.setVisible();
+        },4000);
+    }
+    setVisible(){
+        this.scene.tweens.add({
+            targets:this,
+            alpha:{from:0,to:1},
+            ease:'Power2',
+            duration:800
+        });
+        this.isVisible=true;
+    }
+}
+function fadeOutPlayer(scene){
+    scene.tweens.add({
+        targets:player,
+        alpha:{from:1,to:0},
+        ease:'Power2',
+        duration:800,
+    });
+    player.isVisible=false;
+}
+function fadeInPlayer(scene){
+    scene.tweens.add({
+        targets:player,
+        alpha:{from:0,to:1},
+        ease:'Power2',
+        duration:800
+    });
+    player.isVisible=true;
 }
