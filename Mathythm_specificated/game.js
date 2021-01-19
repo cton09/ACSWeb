@@ -10,6 +10,7 @@ var num_array = [1, 1, 6, 1, 1, 0.3, 17, 144, 3, 2]
 var goal_array = [2, 31, 44, 137, 144, 29.5, 39, 271.6, 5725, 2222]
 var plus_array = [1, 1, 1, 1, 7, 0.5, 1, 11, 11, 2]
 var multiply_array = [2, 2, 5, 2, 2, 10, 1.2, 1.2, 19, 2]
+var best_array = [1, 8, 7, 9, 7, 9, 10, 7, 10, 15]
 
 var game = new Phaser.Game(config);
 
@@ -28,12 +29,12 @@ scene.preload = function() {
 
 scene.create = function() {
 	this.cameras.main.setBackgroundColor('#0000FF')
-	t1 = this.add.rectangle(100, 100, 60, 50, 0x00FF00);
-	t2 = this.add.rectangle(160, 100, 60, 50, 0xFF0000);
+	t1 = this.add.rectangle(370, 300, 60, 50, 0x00FF00);
+	t2 = this.add.rectangle(430, 300, 60, 50, 0xFF0000);
 	t1.setInteractive();
 	t2.setInteractive();
-	this.plusText = this.add.text(90, 100, '+'+this.plus, { fontSize: '16px', fill: '#000' });
-	this.multiText = this.add.text(150, 100, 'x'+this.multiply, { fontSize: '16px', fill: '#000' });
+	this.plusText = this.add.text(360, 300, '+'+this.plus, { fontSize: '16px', fill: '#000' });
+	this.multiText = this.add.text(420, 300, 'x'+this.multiply, { fontSize: '16px', fill: '#000' });
 	r1 = this.add.rectangle(200, 200, 200, 100, 0xFFFFFF)
 	r2 = this.add.rectangle(600, 200, 200, 100, 0xFFFFFF)
 	this.numText = this.add.text(150, 200, 'Current: '+this.num, { fontSize: '16px', fill: '#000' });
@@ -52,6 +53,7 @@ scene.create = function() {
 	this.initialTime = 40;
 
 	this.text = this.add.text(32, 32, 'Countdown: ' + this.initialTime);
+	this.text.setText("Countdown: Unlimited")
 	this.scoreText = this.add.text(550,32,"");
 
     // Each 1000 ms call onEvent
@@ -60,12 +62,12 @@ scene.create = function() {
 };
 function onEvent ()
 {
-	if(this.level>10){
+	if(this.level>10 && this.initialTime>0){
 		this.initialTime -= 1; // One second
     	this.text.setText('Countdown: ' + this.initialTime);
 	}
 	else{
-		this.text.setText("");
+		this.text.setText("Countdown: Unlimited");
 	}
     
 }
@@ -73,16 +75,25 @@ function onEvent ()
 scene.update = function() {
 	if(this.num==this.goal) {
 		this.level+=1
+		if (this.level<=11){
+			if (steps==best_array[this.level-2])
+				this.score += 10*(this.level-1);
+			else
+				this.score += Math.floor(5*(this.level-1)*(best_array[this.level-2]/steps));
+			this.scoreText.setText("Score: " + this.score);
+			steps=0
+		}
 		if (this.level>10){
-			this.score += Math.max(this.initialTime,0);
+			if (this.level>11)
+				this.score += Math.floor(this.initialTime*(this.level-1)/10);
 			this.scoreText.setText("Score: " + this.score);
 			//endless mode starts
 			L  = this.level+1;
-			this.initialTime = 40;
+			this.initialTime = 41;
 			k = Math.floor(Math.sqrt(this.level));
-			this.plus = Math.floor(Math.random()*L);
-			this.multiply = Math.floor(Math.random()*11);
-			startNum  = Math.floor(Math.random()*L);
+			this.plus = 1+Math.floor(Math.random()*(L-1));
+			this.multiply = 2+Math.floor(Math.random()*9);
+			startNum  = 1+Math.floor(Math.random()*(L-1));
 			this.num = startNum;
 			this.goal = this.num;
 			for(i=0;i<k;i++){
@@ -129,8 +140,8 @@ scene.update = function() {
 };
 
 
-scene.end = function() {
-	this.add.text(250, 450, 'Congratulations!', { fontSize: '32px', fill: '#111' });
+scene.end = function() { 
+	this.add.text(250, 425, 'Your time is out!', { fontSize: '32px', fill: '#111' });
 	//this.add.text(100, 550, 'Your spent ' + (steps-83) + ' more step(s) than the minimum.', { fontSize: '16px', fill: '#111' });
-	this.add.text(100, 550, 'Your final score is ' + this.score, { fontSize: '16px', fill: '#111' });
+	this.add.text(100, 525, 'Score: ' + this.score, { fontSize: '48px', fill: '#111' });
 };
