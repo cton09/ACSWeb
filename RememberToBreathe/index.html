@@ -4,7 +4,7 @@
         <title>
             Remember to Breathe
         </title>
-        <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+        <script src="//cdn.jsdelivr.net/npm/phaser@3.24.1/dist/phaser.js"></script>
     </head>
     <body>
         <script>
@@ -142,17 +142,18 @@
                 return arrow.sprite.x > 200 && arrow.sprite.y>75 && arrow.sprite.x < 600 && arrow.sprite.y<525;
             }
             var arrowInPosition = [
+                //Some employee went to HR and complained their pay was being docked when their arrows were too near the corner, so we had to increase the margin of error.
                 function(arrow){
-                    return arrow.sprite.x < 200;
+                    return arrow.sprite.x < 220;
                 },
                 function(arrow){
-                    return arrow.sprite.y < 75;
+                    return arrow.sprite.y < 95;
                 },
                 function(arrow){
-                    return arrow.sprite.x > 600;
+                    return arrow.sprite.x > 580;
                 },
                 function(arrow){
-                    return arrow.sprite.y>525 && arrow.sprite.x>200 && arrow.sprite.x < 600;
+                    return arrow.sprite.y>505;
                 }
             ];
             var config = {
@@ -234,6 +235,7 @@
             var objects = {};
             var activeTasks = [];
             var transferData = {};
+            var cheating = true;
             var globalData = {money:0,items:[],taskNegations:["heart","eyes"],food:2,dayNumber:0,nextScene:"walk",exercising:false,talking:false};
             //Scene progression: walk, work, choice(exercise (hard mode walk: faster breathing and heart), talk, overtime, shop), next day
             var keys = {
@@ -260,11 +262,7 @@
             var maxHeartScale = 0.6;
             var minHeartScale = 0.45;
             var blinkTime = 0.15;
-            var start = Date.now();
-            var timeText
-            var week = [Sun, Mon, Tue, Wed, Thu, Fri, Sat]
-            var tick = 0
-            var day = 0
+
             function preload ()
             {
                 this.load.path = 'Assets/Sprites/';
@@ -430,8 +428,6 @@
                 for(var i = 0; i < tasks.length; i++){
                     if(!globalData.taskNegations.includes(tasks[i])){
                         activeTasks.push(tasks[i]);
-                    }else{
-                        console.log(tasks[i]);
                     }
                 }
                 return activeTasks;
@@ -799,6 +795,10 @@
                         globalData.taskNegations.push("eyes");
                     }
                 }
+                if(cheating){
+                    globalData.taskNegations=["heart","eyes","lungs"];
+                    globalData.nextScene="work";
+                }
                 var singleDayItems = ["negationlungs","negationeyes","negationheart","hardModePills"]
                 for(var i = globalData.items.length-1; i>=0; i--){
                     if(singleDayItems.includes(globalData.items[i])){
@@ -809,8 +809,6 @@
                     }
                 }
                 globalData.food--;
-                tick=7200;
-                day+=1;
             }
             function talkPoint(dir,isLast=false,spd=2000){
                 var point = game.add.sprite(pointX[dir],0,"talkarrow"+dir);
@@ -891,12 +889,13 @@
                 }
             }
             function getArrowIn(x,y){
+                //An employee also complained that horizontal arrows were too slippery and difficult to grasp, so we made sure to add extra friction. (Actually it was a mistake on our part but we won't admit that because that would make us legally liable.)
                 for(var i = 0; i < objects.work.arrows.length; i++){
                     var arrow = objects.work.arrows[i];
-                    var isFlipped = (arrow.angle/90)%2==0;
+                    var isFlipped = (arrow.sprite.angle/90)%2==0;
                     var width = isFlipped?arrow.sprite.width:arrow.sprite.height;
                     var height = isFlipped?arrow.sprite.height:arrow.sprite.width;
-                    if(x>=arrow.sprite.x-width/1.5 && y >= arrow.sprite.y-height/1.5 && x<=arrow.sprite.x+width/1.5 && y<=arrow.sprite.y+height/1.5){
+                    if(x>=arrow.sprite.x-width && y >= arrow.sprite.y-height && x<=arrow.sprite.x+width && y<=arrow.sprite.y+height){
                         return arrow;
                     }
                 }
@@ -988,7 +987,6 @@
                 }
             }
             function onPressLungs(){
-                console.log("Lungs pressed");
                 objects.bars.lungs.canBreatheIn=objects.bars.lungs.oxygenLevel<objects.bars.lungs.totalOxygenLevel/2;
             }
             function shakeLungs(){
@@ -1007,7 +1005,6 @@
             }
             function onPressEyes(){
                 if(!objects.closedEyes.blind){
-                    console.log("Eyes Pressed");
                     objects.bars.eyes.timeLeft = objects.bars.eyes.totalTime;
                     objects.bodyparts.eyes.play("blink");
                     displayBlink();
@@ -1032,7 +1029,6 @@
                 }
             }
             function walkFail(){
-                console.log("Walking failure");
                 game.sound.play('walkfail');
                 objects.walk.walkFailed=true;
                 objects.walk.cooldown=objects.walk.maxCooldown;
@@ -1065,33 +1061,7 @@
                 transferData={image:endscreenType,score:text};
                 game.scene.start("endscreen");
             }
-            function isOpen(loc, tick){
-                if (loc=='office'&&7860<=tick<=19200&&day!='Sun')
-                    return true
-                if (loc=='park')
-                    return true
-                if (loc=='home')
-                    return true
-                if (loc=='cafe'&&tick>=15360)
-                    return true
-                if (loc=='grocery'&&tick<16320&&day!='Sat')
-                    return true
-                return false
-            }
-            function checkForPassout(loc, tick){
-                if (loc=='home'&&tick==960)
-                    return true
-                return false
-            }
             function update(time, delta){
-                tick+=1
-                if (tick>=23040){
-                    tick-=23040
-                    day+=1
-                }
-                hour = tick/960
-                minute = (tick%960)/16
-                this.timeText = this.add.text(300, 550, day+'\n'+hour+':'+minute, { fontSize: '16px', fill: '#000' });
                 var dt = delta/1000;
                 if(gameState.indexOf("countdown")==0){
                     if(activeTasks.includes("heart")){
@@ -1132,7 +1102,6 @@
                         }
                         if(objects.bars.eyes.timeLeft<=0){
                             //Blind Effect
-                            console.log("Blinking Failure");
                             eyeFailure();
                             objects.bars.eyes.timeLeft = objects.bars.eyes.totalTime;
                         }
@@ -1151,7 +1120,6 @@
                             shakeLungs();
                             if(objects.bars.lungs.timeFull>=objects.bars.lungs.maxTimeFull){
                                 //Fail state
-                                console.log("Breathing Failure");
                                 var failsafe = globalData.items.indexOf("lungFailsafe");
                                 if(failsafe>-1){
                                     objects.bars.lungs.timeFull=0;
