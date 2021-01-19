@@ -18,10 +18,12 @@ var game = new Phaser.Game(config);
 var gameScene = new Phaser.Scene("game");
 var titleScene = new Phaser.Scene("title");
 var winScene = new Phaser.Scene("win");
+var loseScene = new Phaser.Scene("lose");
 
 game.scene.add('title', titleScene);
 game.scene.add("game", gameScene);
 game.scene.add("win", winScene);
+game.scene.add("lose",loseScene);
 
 game.scene.start('title');
 var map;
@@ -42,8 +44,10 @@ gameScene.preload = function() {
     this.load.image('glass','Assets/Tiles/glass.png');
     this.load.image('player','Assets/player.png');
     this.load.image('spider','Assets/spider.png');
+    this.load.image('spider_dead','Assets/spider_dead.png');
     this.load.image('null','Assets/null.png')
     this.load.image('guard','Assets/guard.png');
+    this.load.image('guard_dead','Assets/guard_dead.png');
     this.load.image('chameleon',"Assets/chameleon.png");
     this.load.image('chameleon_dead',"Assets/chameleon_dead.png");
 }
@@ -140,11 +144,18 @@ gameScene.update = function(time, delta) {
         zone.emit('enterzone');
       }
     player.enemyGroup = enemyGroup;
-
+    if(player.form=='spider'){
+        player.isVisible = false;
+    }
+    else{
+        player.isVisible = true;
+    }
     if(this.physics.world.overlap(player, this.spikeGroup)){
         player.die();
     }
-    
+    if(player.dead){
+        this.scene.switch('lose');
+    }
     enemyGroup.children.each(function(enemy) {
         if(enemy.type=='guard'&& !enemy.dead){   
             var bruh = enemy.x - player.x; 
@@ -191,6 +202,14 @@ winScene.preload = function() {
 
 winScene.create = function() {
     var bg = this.add.sprite(0,0,'win');
+    bg.setOrigin(0,0);
+};
+loseScene.preload = function() {
+    this.load.image('lose','Assets/lose.png')
+};
+
+loseScene.create = function() {
+    var bg = this.add.sprite(0,0,'lose');
     bg.setOrigin(0,0);
 };
 class Unit extends Phaser.Physics.Arcade.Sprite {
@@ -243,6 +262,7 @@ class Player extends Unit{
         this.dead = true;
         //lose state
         console.log('l');
+        
     }
     hurt(enemy){
         if(enemy.type==null){
@@ -349,7 +369,7 @@ class Spider extends Unit{
         this.dead = true;
     }
     attack(target){
-        if(target.texture == 'guard'){
+        if(target.type == 'guard'){
             target.die();
         }
         else{
@@ -366,6 +386,8 @@ class Guard extends Unit{
         this.ogx = x;
     }
     die(){
+        this.setTexture('guard_dead');
+        this.body.setSize(128,64);
         this.dead = true;
         
     }
